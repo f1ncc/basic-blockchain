@@ -1,11 +1,44 @@
 const SHA256 = require('crypto-js/sha256');
 
+const EC = require('elliptic').ec
+const ec = new EC('secp256k1')
+
+import d from './main'
+
 class Transaction{
     constructor(from, to, amount)
     {
         this.from = from
         this.to = to
         this.amount = amount
+    }
+    calcHash()
+    {
+        return SHA256(this.from + this.to + this.amount).toString()
+    }
+    signTransaction(signingKey)
+    {
+        if(signingKey.getPublic('hex') !== this.from)
+        {
+            throw new Error('fraud detected -- addresses not matched')
+        }
+        
+        const hashTrans = this.calcHash
+        const sign = signingKey.sign(hashTrans, 'base64')
+        this.signature = sign.toDER('hex')
+    }
+    isValid()
+    {
+        if(this.from === null)
+        {
+            return true
+        }
+        if(!this.signature || this.signature.length === 0)
+        {
+            throw new Error('Not approved')
+        }
+        const pubkey = ec.keyFromPublic(this.from, 'hex')
+        return pubkey.verify(this.calcHash(), this.signature)
     }
 }
 
@@ -33,6 +66,17 @@ class Block{
             this.hash = this.calcHash();
         }
         //console.log(`Block is mined-> Hash-> ${this.hash}`)
+    }
+    allValid()
+    {
+        for(let k = 0; k < this.transactions.length; k++)
+        {
+            if(!k.isValid())
+            {
+                return false
+            }
+        }
+        return true
     }
 }
 
@@ -63,8 +107,17 @@ class Blockchain{
 
 
     }
-    createTransaction(transaction)
+    addTransaction(transaction)
     {
+        if(!transaction.from || !transaction.to)
+        {
+            throw new Error('Include the required addresses to complete the transaction')
+        }
+        if(!transaction.isValid())
+        {
+            throw new Error('The transaction is invalid')
+        }
+        
         this.pendingTransactions.push(transaction)
     }
     getBalance(address)
@@ -99,6 +152,11 @@ class Blockchain{
         {
             const currentBlock = this.chain[i]
             const prevBlock = this.chain[i-1]
+            if(!currentBlock.allValid())
+            {
+                return false
+            }
+            
             if(currentBlock.hash !== currentBlock.calcHash)
             {
                 return false
@@ -111,11 +169,9 @@ class Blockchain{
         return true
     }
 }
-var d = new Date();
-var newCoin = new Blockchain();
-//console.log('Mining block 1')
-//newCoin.addBlock(new Block(1, d.getFullYear(), {amount: 11, name: 'Sathya'}))
-//console.log('Mining block 2')
-//newCoin.addBlock(new Block(2, d.getFullYear(), {amount: 111, name: 'Sathya Again'}))
-//console.log(JSON.stringify(newCoin, null, 4))
+
+
+module.exports.Blockchain = Blockchain
+module.exports.transaction = Transaction
+
 
