@@ -3,7 +3,7 @@ const SHA256 = require('crypto-js/sha256');
 const EC = require('elliptic').ec
 const ec = new EC('secp256k1')
 
-import d from './main'
+import d from '../main'
 
 class Transaction{
     constructor(from, to, amount)
